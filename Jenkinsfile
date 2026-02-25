@@ -18,11 +18,14 @@ pipeline {
         }
 
         stage('Build Maven') {
-            steps {
-                echo "Building Java application using Maven 3.8.7..."
-                sh 'mvn clean package'
-            }
+    steps {
+        script {
+            // Use the Maven tool installed in Jenkins
+            def mvnHome = tool name: 'Maven3.8.7', type: 'maven'
+            sh "${mvnHome}/bin/mvn clean package"
         }
+    }
+}
 
         stage('Build Docker Image') {
             steps {
