@@ -11,7 +11,7 @@ pipeline {
 
     stages {
 
-        stage('Clone') {
+        stage('Clone Repository') {
             steps {
                 git url: 'https://github.com/shettyspoorthy790-pixel/HelloJenkins', branch: 'main'
             }
@@ -19,21 +19,21 @@ pipeline {
 
         stage('Build Maven') {
             steps {
-                // Use the Maven installation 3.8.7 from Jenkins
-                withMaven(maven: 'Maven-3.8.7') {
-                    sh 'mvn clean package'
-                }
+                echo "Building Java application using Maven 3.8.7..."
+                sh 'mvn clean package'
             }
         }
 
-        stage('Build Docker') {
+        stage('Build Docker Image') {
             steps {
-                sh 'docker build -t testproject .'
+                echo "Building Docker image..."
+                sh "docker build -t testproject ."
             }
         }
 
         stage('Login to ECR') {
             steps {
+                echo "Logging into AWS ECR..."
                 sh '''
                 aws ecr get-login-password --region $AWS_REGION | \
                 docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
@@ -41,24 +41,26 @@ pipeline {
             }
         }
 
-        stage('Tag Image') {
+        stage('Tag Docker Image') {
             steps {
-                sh 'docker tag testproject:latest $IMAGE'
+                echo "Tagging Docker image..."
+                sh "docker tag testproject:latest $IMAGE"
             }
         }
 
-        stage('Push Image') {
+        stage('Push Docker Image') {
             steps {
-                sh 'docker push $IMAGE'
+                echo "Pushing Docker image to ECR..."
+                sh "docker push $IMAGE"
             }
         }
 
         stage('Deploy to EKS') {
             steps {
+                echo "Deploying to EKS..."
                 sh '''
                 aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
                 kubectl apply -f deployment.yaml
-                kubectl get pods -w
                 '''
             }
         }
@@ -66,10 +68,10 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline completed successfully: Docker image pushed and deployed!"
+            echo "Pipeline completed successfully! Docker image pushed and deployed to EKS."
         }
         failure {
-            echo "Pipeline failed. Check the logs for errors."
+            echo "Pipeline failed. Check logs for errors."
         }
     }
 }
