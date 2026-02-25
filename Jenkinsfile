@@ -19,7 +19,10 @@ pipeline {
 
         stage('Build Maven') {
             steps {
-                sh 'mvn clean package'
+                // Use the Maven installation 3.8.7 from Jenkins
+                withMaven(maven: 'Maven-3.8.7') {
+                    sh 'mvn clean package'
+                }
             }
         }
 
@@ -55,8 +58,18 @@ pipeline {
                 sh '''
                 aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
                 kubectl apply -f deployment.yaml
+                kubectl get pods -w
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully: Docker image pushed and deployed!"
+        }
+        failure {
+            echo "Pipeline failed. Check the logs for errors."
         }
     }
 }
