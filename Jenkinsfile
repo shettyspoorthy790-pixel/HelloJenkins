@@ -1,21 +1,21 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven3.8.7'    // Your Jenkins Maven tool name
+        jdk 'openjdk 17.0.18' // Your Jenkins JDK tool name
+    }
+
     environment {
-        AWS_REGION = 'ap-south-1'
-        AWS_ACCOUNT_ID = '840597584147'
-        ECR_REPO = 'hello-jenkins'
-        IMAGE = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest"
-        CLUSTER_NAME = 'my-clusters'
-        MAVEN_HOME = tool name: 'Maven3.8.7', type: 'maven'
-        JAVA_HOME = tool name: 'openjdk 17.0.18', type: 'jdk'
-        PATH = "${MAVEN_HOME}/bin:${JAVA_HOME}/bin:${env.PATH}"
+        DOCKER_IMAGE = "hello-jenkins"
+        ECR_REPO = "840597584147.dkr.ecr.ap-south-1.amazonaws.com/testproject"
+        AWS_REGION = "ap-south-1"
     }
 
     stages {
-
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
+                echo "Checking out code from GitHub..."
                 git url: 'https://github.com/shettyspoorthy790-pixel/HelloJenkins', branch: 'main'
             }
         }
@@ -30,44 +30,45 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker image..."
-                sh 'docker build -t hello-jenkins .'
+                sh "docker build -t ${DOCKER_IMAGE} ."
             }
         }
 
         stage('Login to ECR') {
             steps {
-                sh '''
-                aws ecr get-login-password --region $AWS_REGION | \
-                docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-                '''
+                echo "Logging in to AWS ECR..."
+                sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login --username AWS --password-stdin ${ECR_REPO}
+                """
             }
         }
 
         stage('Tag Docker Image') {
             steps {
-                sh "docker tag hello-jenkins $IMAGE"
+                echo "Tagging Docker image for ECR..."
+                sh "docker tag ${DOCKER_IMAGE}:latest ${ECR_REPO}:latest"
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                sh "docker push $IMAGE"
+                echo "Pushing Docker image to ECR..."
+                sh "docker push ${ECR_REPO}:latest"
             }
         }
 
         stage('Deploy to EKS') {
             steps {
-                sh '''
-                aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
-                kubectl apply -f deployment.yaml
-                '''
+                echo "Deploy stage — add kubectl commands here if needed"
+                // Example: sh "kubectl apply -f k8s/deployment.yaml"
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline completed successfully: Docker image pushed and deployed to EKS."
+            echo "Pipeline completed successfully!"
         }
         failure {
             echo "Pipeline failed. Check logs for errors."
